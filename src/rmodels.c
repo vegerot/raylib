@@ -42,14 +42,10 @@
 
 #include "raylib.h"         // Declares module functions
 
-// Check if config flags have been externally provided on compilation line
-#if !defined(EXTERNAL_CONFIG_FLAGS)
-    #include "config.h"     // Defines module configuration flags
-#endif
+#include "config.h"         // Defines module configuration flags
 
 #if defined(SUPPORT_MODULE_RMODELS)
 
-#include "utils.h"          // Required for: TRACELOG(), LoadFileData(), LoadFileText(), SaveFileText()
 #include "rlgl.h"           // OpenGL abstraction layer to OpenGL 1.1, 2.1, 3.3+ or ES2
 #include "raymath.h"        // Required for: Vector3, Quaternion and Matrix functionality
 
@@ -1723,10 +1719,10 @@ void DrawMeshInstanced(Mesh mesh, Material material, const Matrix *transforms, i
     if (material.shader.locs[SHADER_LOC_COLOR_SPECULAR] != -1)
     {
         float values[4] = {
-            (float)material.maps[SHADER_LOC_COLOR_SPECULAR].color.r/255.0f,
-            (float)material.maps[SHADER_LOC_COLOR_SPECULAR].color.g/255.0f,
-            (float)material.maps[SHADER_LOC_COLOR_SPECULAR].color.b/255.0f,
-            (float)material.maps[SHADER_LOC_COLOR_SPECULAR].color.a/255.0f
+            (float)material.maps[MATERIAL_MAP_SPECULAR].color.r/255.0f,
+            (float)material.maps[MATERIAL_MAP_SPECULAR].color.g/255.0f,
+            (float)material.maps[MATERIAL_MAP_SPECULAR].color.b/255.0f,
+            (float)material.maps[MATERIAL_MAP_SPECULAR].color.a/255.0f
         };
 
         rlSetUniform(material.shader.locs[SHADER_LOC_COLOR_SPECULAR], values, SHADER_UNIFORM_VEC4, 1);
@@ -1758,7 +1754,7 @@ void DrawMeshInstanced(Mesh mesh, Material material, const Matrix *transforms, i
     // This could alternatively use a static VBO and either glMapBuffer() or glBufferSubData()
     // It isn't clear which would be reliably faster in all cases and on all platforms,
     // anecdotally glMapBuffer() seems very slow (syncs) while glBufferSubData() seems
-    // no faster, since we're transferring all the transform matrices anyway
+    // no faster, since all the transform matrices are transferred anyway
     instancesVboId = rlLoadVertexBuffer(instanceTransforms, instances*sizeof(float16), false);
 
     // Instances transformation matrices are sent to shader attribute location: SHADER_LOC_VERTEX_INSTANCE_TX
@@ -2362,11 +2358,12 @@ void UpdateModelAnimation(Model model, ModelAnimation anim, int frame)
         Mesh mesh = model.meshes[m];
         Vector3 animVertex = { 0 };
         Vector3 animNormal = { 0 };
+        const int vValues = mesh.vertexCount*3;
+        
         int boneId = 0;
         int boneCounter = 0;
-        float boneWeight = 0.0;
+        float boneWeight = 0.0f;
         bool updated = false; // Flag to check when anim vertex information is updated
-        const int vValues = mesh.vertexCount*3;
 
         // Skip if missing bone data, causes segfault without on some models
         if ((mesh.boneWeights == NULL) || (mesh.boneIds == NULL)) continue;
@@ -2392,7 +2389,7 @@ void UpdateModelAnimation(Model model, ModelAnimation anim, int frame)
                 // Early stop when no transformation will be applied
                 if (boneWeight == 0.0f) continue;
                 animVertex = (Vector3){ mesh.vertices[vCounter], mesh.vertices[vCounter + 1], mesh.vertices[vCounter + 2] };
-                animVertex = Vector3Transform(animVertex,model.meshes[m].boneMatrices[boneId]);
+                animVertex = Vector3Transform(animVertex, model.meshes[m].boneMatrices[boneId]);
                 mesh.animVertices[vCounter] += animVertex.x*boneWeight;
                 mesh.animVertices[vCounter+1] += animVertex.y*boneWeight;
                 mesh.animVertices[vCounter+2] += animVertex.z*boneWeight;
@@ -4088,7 +4085,7 @@ RayCollision GetRayCollisionBox(Ray ray, BoundingBox box)
 {
     RayCollision collision = { 0 };
 
-    // Note: If ray.position is inside the box, the distance is negative (as if the ray was reversed)
+    // NOTE: If ray.position is inside the box, the distance is negative (as if the ray was reversed)
     // Reversing ray.direction will give use the correct result
     bool insideBox = (ray.position.x > box.min.x) && (ray.position.x < box.max.x) &&
                      (ray.position.y > box.min.y) && (ray.position.y < box.max.y) &&
@@ -6521,7 +6518,7 @@ static ModelAnimation *LoadModelAnimationsGLTF(const char *fileName, int *animCo
                         };
                     }
 
-                    Transform* root = &animations[i].framePoses[j][0];
+                    Transform *root = &animations[i].framePoses[j][0];
                     root->rotation = QuaternionMultiply(worldTransform.rotation, root->rotation);
                     root->scale = Vector3Multiply(root->scale, worldTransform.scale);
                     root->translation = Vector3Multiply(root->translation, worldTransform.scale);

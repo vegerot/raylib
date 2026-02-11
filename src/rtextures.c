@@ -63,14 +63,10 @@
 
 #include "raylib.h"             // Declares module functions
 
-// Check if config flags have been externally provided on compilation line
-#if !defined(EXTERNAL_CONFIG_FLAGS)
-    #include "config.h"         // Defines module configuration flags
-#endif
+#include "config.h"             // Defines module configuration flags
 
 #if defined(SUPPORT_MODULE_RTEXTURES)
 
-#include "utils.h"              // Required for: TRACELOG()
 #include "rlgl.h"               // OpenGL abstraction layer to multiple versions
 
 #include <stdlib.h>             // Required for: malloc(), calloc(), free()
@@ -3629,7 +3625,7 @@ void ImageDrawLineEx(Image *dst, Vector2 start, Vector2 end, int thick, Color co
 }
 
 // Draw circle within an image
-void ImageDrawCircle(Image* dst, int centerX, int centerY, int radius, Color color)
+void ImageDrawCircle(Image *dst, int centerX, int centerY, int radius, Color color)
 {
     int x = 0;
     int y = radius;
@@ -3653,7 +3649,7 @@ void ImageDrawCircle(Image* dst, int centerX, int centerY, int radius, Color col
 }
 
 // Draw circle within an image (Vector version)
-void ImageDrawCircleV(Image* dst, Vector2 center, int radius, Color color)
+void ImageDrawCircleV(Image *dst, Vector2 center, int radius, Color color)
 {
     ImageDrawCircle(dst, (int)center.x, (int)center.y, radius, color);
 }

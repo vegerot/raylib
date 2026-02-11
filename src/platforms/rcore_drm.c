@@ -13,9 +13,6 @@
 *       - Improvement 01
 *       - Improvement 02
 *
-*   ADDITIONAL NOTES:
-*       - TRACELOG() function is located in raylib [utils] module
-*
 *   CONFIGURATION:
 *       #define SUPPORT_SSH_KEYBOARD_RPI (Raspberry Pi only)
 *           Reconfigure standard input to receive key inputs, works with SSH connection
@@ -918,7 +915,7 @@ void SwapScreenBuffer(void)
         {
             TRACELOG(LOG_ERROR, "DISPLAY: Failed to get DRM resources");
             drmModeRmFB(platform.fd, fb);
-            struct drm_mode_destroy_dumb dreq = {0};
+            struct drm_mode_destroy_dumb dreq = { 0 };
             dreq.handle = creq.handle;
             drmIoctl(platform.fd, DRM_IOCTL_MODE_DESTROY_DUMB, &dreq);
             return;
@@ -958,7 +955,7 @@ void SwapScreenBuffer(void)
         {
             TRACELOG(LOG_ERROR, "DISPLAY: No compatible CRTC found");
             drmModeRmFB(platform.fd, fb);
-            struct drm_mode_destroy_dumb dreq = {0};
+            struct drm_mode_destroy_dumb dreq = { 0 };
             dreq.handle = creq.handle;
             drmIoctl(platform.fd, DRM_IOCTL_MODE_DESTROY_DUMB, &dreq);
             return;
@@ -974,7 +971,7 @@ void SwapScreenBuffer(void)
         TRACELOG(LOG_ERROR, "DISPLAY: Mode: %dx%d@%d", mode->hdisplay, mode->vdisplay, mode->vrefresh);
 
         drmModeRmFB(platform.fd, fb);
-        struct drm_mode_destroy_dumb dreq = {0};
+        struct drm_mode_destroy_dumb dreq = { 0 };
         dreq.handle = creq.handle;
         drmIoctl(platform.fd, DRM_IOCTL_MODE_DESTROY_DUMB, &dreq);
         return;
@@ -992,7 +989,7 @@ void SwapScreenBuffer(void)
     // Clean up previous dumb buffer
     if (platform.prevDumbHandle)
     {
-        struct drm_mode_destroy_dumb dreq = {0};
+        struct drm_mode_destroy_dumb dreq = { 0 };
         dreq.handle = platform.prevDumbHandle;
         drmIoctl(platform.fd, DRM_IOCTL_MODE_DESTROY_DUMB, &dreq);
     }
@@ -1164,7 +1161,8 @@ int InitPlatform(void)
     platform.fd = open("/dev/dri/by-path/platform-gpu-card", O_RDWR); // VideoCore VI (Raspberry Pi 4)
     if (platform.fd != -1) TRACELOG(LOG_INFO, "DISPLAY: platform-gpu-card opened successfully");
 
-    if ((platform.fd == -1) || (drmModeGetResources(platform.fd) == NULL))
+    drmModeRes *res = NULL;
+    if ((platform.fd == -1) || ((res = drmModeGetResources(platform.fd)) == NULL))
     {
         if (platform.fd != -1) close(platform.fd);
         TRACELOG(LOG_WARNING, "DISPLAY: Failed to open platform-gpu-card, trying card1");
@@ -1172,7 +1170,7 @@ int InitPlatform(void)
         if (platform.fd != -1) TRACELOG(LOG_INFO, "DISPLAY: card1 opened successfully");
     }
 
-    if ((platform.fd == -1) || (drmModeGetResources(platform.fd) == NULL))
+    if ((platform.fd == -1) || ((res = drmModeGetResources(platform.fd)) == NULL))
     {
         if (platform.fd != -1) close(platform.fd);
         TRACELOG(LOG_WARNING, "DISPLAY: Failed to open graphic card1, trying card0");
@@ -1180,7 +1178,7 @@ int InitPlatform(void)
         if (platform.fd != -1) TRACELOG(LOG_INFO, "DISPLAY: card0 opened successfully");
     }
 
-    if ((platform.fd == -1) || (drmModeGetResources(platform.fd) == NULL))
+    if ((platform.fd == -1) || ((res = drmModeGetResources(platform.fd)) == NULL))
     {
         if (platform.fd != -1) close(platform.fd);
         TRACELOG(LOG_WARNING, "DISPLAY: Failed to open graphic card0, trying card2");
@@ -1195,7 +1193,6 @@ int InitPlatform(void)
         return -1;
     }
 
-    drmModeRes *res = drmModeGetResources(platform.fd);
     if (!res)
     {
         TRACELOG(LOG_WARNING, "DISPLAY: Failed get DRM resources");
@@ -1418,6 +1415,7 @@ int InitPlatform(void)
     };
 
     EGLint numConfigs = 0;
+    const char *eglClientExtensions = NULL;
 
     // Get an EGL device connection
     // NOTE: eglGetPlatformDisplay() is preferred over eglGetDisplay() legacy call
@@ -1427,14 +1425,12 @@ int InitPlatform(void)
 #else
     // Check if extension is available for eglGetPlatformDisplayEXT()
     // NOTE: Better compatibility with some drivers (e.g. Mali Midgard)
-    const char *eglClientExtensions = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
-    if (eglClientExtensions != NULL)
+    eglClientExtensions = eglQueryString(EGL_NO_DISPLAY, EGL_EXTENSIONS);
+    if ((eglClientExtensions != NULL) && (strstr(eglClientExtensions, "EGL_EXT_platform_base") != NULL))
     {
-        if (strstr(eglClientExtensions, "EGL_EXT_platform_base") != NULL)
-        {
-            PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT = (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress("eglGetPlatformDisplayEXT");
-            if (eglGetPlatformDisplayEXT != NULL) platform.device = eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_KHR, platform.gbmDevice, NULL);
-        }
+        PFNEGLGETPLATFORMDISPLAYEXTPROC eglGetPlatformDisplayEXT = (PFNEGLGETPLATFORMDISPLAYEXTPROC)eglGetProcAddress("eglGetPlatformDisplayEXT");
+        
+        if (eglGetPlatformDisplayEXT != NULL) platform.device = eglGetPlatformDisplayEXT(EGL_PLATFORM_GBM_KHR, platform.gbmDevice, NULL);
     }
 
     // In case extension not found or display could not be retrieved, try useing legacy version
@@ -1473,7 +1469,7 @@ int InitPlatform(void)
     if (!eglChooseConfig(platform.device, framebufferAttribs, configs, numConfigs, &matchingNumConfigs))
     {
         TRACELOG(LOG_WARNING, "DISPLAY: Failed to choose EGL config: 0x%x", eglGetError());
-        free(configs);
+        RL_FREE(configs);
         return -1;
     }
 
@@ -1523,13 +1519,9 @@ int InitPlatform(void)
 
     if ((eglClientExtensions != NULL) && (strstr(eglClientExtensions, "EGL_EXT_platform_base") != NULL))
     {
-        PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC eglCreatePlatformWindowSurfaceEXT =
-            (PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC)eglGetProcAddress("eglCreatePlatformWindowSurfaceEXT");
+        PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC eglCreatePlatformWindowSurfaceEXT = (PFNEGLCREATEPLATFORMWINDOWSURFACEEXTPROC)eglGetProcAddress("eglCreatePlatformWindowSurfaceEXT");
 
-        if (eglCreatePlatformWindowSurfaceEXT != NULL)
-        {
-            platform.surface = eglCreatePlatformWindowSurfaceEXT(platform.device, platform.config, platform.gbmSurface, NULL);
-        }
+        if (eglCreatePlatformWindowSurfaceEXT != NULL) platform.surface = eglCreatePlatformWindowSurfaceEXT(platform.device, platform.config, platform.gbmSurface, NULL);
     }
 
     if (platform.surface == EGL_NO_SURFACE)
